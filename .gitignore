@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+beer-review-scores-explain.ipynb
+regression-example.ipynb
+
 # C extensions
 *.so
 
