@@ -8,6 +8,8 @@ import json
 import numpy as np
 from random import randint
 from sklearn import metrics
+from math import pi
+from sklearn.preprocessing import MinMaxScaler
 
 def save_fraction_csv(csv_path: str, fraction_folder: str, fraction_fiename: str, fraction_size: float):
     # read the csv file
@@ -287,6 +289,7 @@ def plot_attr_distr_by_catcols(df, atr_name: str, selected_cols: list) -> None:
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
 
+
 def plot_attr_polym_line_vs_num_feature(df, attr_name: str, selected_cols: list) -> None:
     num_subplots = len(selected_cols)
     num_rows = (num_subplots - 1) // 3 + 1
@@ -299,6 +302,9 @@ def plot_attr_polym_line_vs_num_feature(df, attr_name: str, selected_cols: list)
         for j in range(num_cols):
             idx = i * num_cols + j
             if idx < num_subplots:
+                # For each subplot, it draws a scatter plot and a polynomial regression line (of order 2) using sns.scatterplot() and sns.regplot(). 
+                # The scatter plot shows the relationship between the attr_name and each selected column. 
+                # The regression line is a polynomial line that fits the scatter plot data, providing a visual representation of the trend in data.
                 sns.scatterplot(x=selected_cols[idx], y=attr_name, data=df, ax=axes[i, j], color=palette[idx])
                 sns.regplot(x=selected_cols[idx], y=attr_name, data=df, ax=axes[i, j], scatter=False, order=2,
                             color=palette[idx], ci=None)
@@ -343,3 +349,73 @@ def plot_permutation_importances(X_columns, importances, X_train, indices, std):
     plt.xticks(rotation=70)
     plt.xlim([-1, X_train.shape[1]])
     plt.show()
+
+def top_n_popular_classes(df, column_name, n):  
+    """  
+    Function to return the top n classes by their frequency in a specific column of a dataframe.  
+  
+    Parameters:  
+    df: pandas DataFrame.  
+    column_name: str, the column for which to find the most popular classes.  
+    n: int, the number of top classes to return.  
+  
+    Returns:  
+    pandas Series with the top n classes in the specified column and their frequencies.  
+    """  
+      
+    return df[column_name].value_counts().head(n) 
+
+
+def plot_radar_chart(df, col_group_by:str, cols_in_chart:list, top_col_num:int):  
+    cols_in_chart_ = cols_in_chart
+    cols_in_chart_.append(col_group_by)    
+    cols_info = df.groupby(col_group_by)[cols_in_chart].mean().reset_index()[cols_in_chart_]
+    
+    popular_classes = top_n_popular_classes(df, col_group_by, top_col_num)  
+    # Ensure popular classes exist in cols_info after grouping.  
+    popular_classes = [c for c in popular_classes.index if c in cols_info[col_group_by].unique()]  
+    if not popular_classes:  
+        print(f"None of the popular classes in column '{col_group_by}' exist after grouping.")  
+        return  
+  
+    cols_info = cols_info[cols_info[col_group_by].isin(popular_classes)] 
+    cols_info = cols_info.reset_index()  
+    del cols_info["index"]  
+  
+    scaler = MinMaxScaler((0.02, 1))  
+    # print("***")
+    # print(cols_info.columns)
+    # print()
+    # print(cols_info.columns[:-1])
+    df_normalized = pd.DataFrame(scaler.fit_transform(cols_info.iloc[:, :-1]), columns=cols_info.columns[:-1])  
+  
+    df_normalized[col_group_by] = cols_info[col_group_by]  
+    df_normalized = df_normalized[cols_in_chart]  
+  
+    categories = df_normalized.columns.tolist()[:-1]  
+    
+    N = len(categories)  
+    colors = ['blue', 'green', 'red', 'darkcyan', 'magenta', 'purple']  
+  
+    fig, axes = plt.subplots(figsize=(15, 10), nrows=2, ncols=3, subplot_kw=dict(polar=True))  
+  
+    for ax, (idx, row), color in zip(axes.flatten(), df_normalized.iterrows(), colors):  
+        values = row.drop(col_group_by).values.flatten().tolist()  
+        values += values[:1]  
+        angles = [n / float(N) * 2 * pi for n in range(N)]  
+        angles += angles[:1]  
+  
+        ax.set_theta_offset(pi / 2)  
+        ax.set_theta_direction(-1)  
+  
+        ax.set_xticks(angles[:-1])  
+        ax.set_xticklabels(categories, color='grey', size=12)  
+  
+        ax.plot(angles, values, linewidth=2, linestyle='solid', label=row[col_group_by], color=color)  
+  
+        ax.fill(angles, values, color, alpha=0.1)  
+  
+        ax.set_title(row[col_group_by], size=14, color=color, y=1.1)  
+  
+    plt.tight_layout()  
+    plt.show()  
